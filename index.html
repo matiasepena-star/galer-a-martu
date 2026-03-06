@@ -35,15 +35,23 @@
     <div id="qr"></div>
 
     <script>
-        // Reemplazá con tu config de Firebase
-        const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_PROYECTO.firebaseapp.com",
-            projectId: "TU_PROYECTO",
-            storageBucket: "TU_PROYECTO.appspot.com",
-            messagingSenderId: "TU_SENDER_ID",
-            appId: "TU_APP_ID"
-        };
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCshsfr2sdKg67-9v-DRvLV10uJpnk71A8",
+  authDomain: "galeria-martu.firebaseapp.com",
+  projectId: "galeria-martu",
+  storageBucket: "galeria-martu.firebasestorage.app",
+  messagingSenderId: "968941856473",
+  appId: "1:968941856473:web:622151ffdb0097b576c0c8"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
         firebase.initializeApp(firebaseConfig);
         
         const auth = firebase.auth();
