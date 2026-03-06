@@ -1,1 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Dibujos - Para mi Sobrina 🎨</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; text-align: center; }
+        h1 { color: #ff69b4; }
+        button { background: #ff69b4; color: white; border: none; padding: 10px; margin: 10px; cursor: pointer; }
+        .gallery { display: flex; flex-wrap: wrap; justify-content: center; }
+        .image { margin: 10px; text-align: center; }
+        .image img { max-width: 200px; border: 2px solid #ddd; }
+        #qr { margin: 20px; }
+    </style>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+    <!-- QR Code library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>¡Galería de Tus Dibujos! 🎨✨</h1>
+    <input type="file" id="upload" accept="image/*" multiple>
+    <button onclick="uploadImages()">Subir Dibujos</button>
+    <button onclick="loadImages()">Actualizar Galería</button>
+    <button onclick="saveSelection()">Guardar Selección</button>
+    <button onclick="generateQR()">Generar QR para Compartir</button>
+    
+    <h2>Tus Dibujos (Selecciona los que querés mostrar)</h2>
+    <div id="gallery" class="gallery"></div>
+    
+    <div id="qr"></div>
 
+    <script>
+        // Reemplazá con tu config de Firebase
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+        const db = firebase.firestore();
+        let userId = null;
+        let images = []; // Lista de imágenes
+        
+        // Autenticación anónima
+        auth.signInAnonymously().then(user => {
+            userId = user.user.uid;
+            loadImages();
+        }).catch(error => console.error('Error auth:', error));
+        
+        // Subir imágenes
+        function uploadImages() {
+            const files = document.getElementById('upload').files;
+            for (let file of files) {
+                const ref = storage.ref(`dibujos/${userId}/${file.name}`);
+                ref.put(file).then(() => {
+                    console.log('Subido:', file.name);
+                    loadImages();
+                });
+            }
+        }
+        
+        // Cargar imágenes
+        function loadImages(isPublic = false) {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            images = [];
+            
+            storage.ref(`dibujos/${userId}`).listAll().then(res => {
+                res.items.forEach(itemRef => {
+                    itemRef.getDownloadURL().then(url => {
+                        images.push({ name: itemRef.name, url });
+                        if (isPublic) {
+                            // Modo público: solo mostrar seleccionados
+                            db.collection('seleccionados').doc(userId).get().then(doc => {
+                                const selected = doc.data()?.images || [];
+                                if (selected.includes(itemRef.name)) {
+                                    addImageToGallery(url, itemRef.name, true);
+                                }
+                            });
+                        } else {
+                            // Modo edición
+                            addImageToGallery(url, itemRef.name, false);
+                        }
+                    });
+                });
+            });
+        }
+        
+        function addImageToGallery(url, name, isPublic) {
+            const div = document.createElement('div');
+            div.className = 'image';
+            div.innerHTML = `<img src="${url}" alt="${name}">`;
+            if (!isPublic) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = name;
+                // Cargar si está seleccionado
+                db.collection('seleccionados').doc(userId).get().then(doc => {
+                    const selected = doc.data()?.images || [];
+                    checkbox.checked = selected.includes(name);
+                });
+                div.appendChild(checkbox);
+            }
+            document.getElementById('gallery').appendChild(div);
+        }
+        
+        // Guardar selección
+        function saveSelection() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            const selected = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) selected.push(cb.value);
+            });
+            db.collection('seleccionados').doc(userId).set({ images: selected });
+            alert('¡Selección guardada! 🎉');
+        }
+        
+        // Generar QR para galería pública
+        function generateQR() {
+            const publicUrl = `${window.location.origin}${window.location.pathname}?mode=public&uid=${userId}`;
+            document.getElementById('qr').innerHTML = '';
+            QRCode.toCanvas(document.createElement('canvas'), publicUrl, (error, canvas) => {
+                if (error) console.error(error);
+                document.getElementById('qr').appendChild(canvas);
+                alert('¡QR generado! Escanealo para ver la galería pública.');
+            });
+        }
+        
+        // Chequear si es modo público
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'public') {
+            userId = urlParams.get('uid');
+            document.querySelectorAll('button, input').forEach(el => el.style.display = 'none');
+            document.querySelector('h2').textContent = 'Galería de Dibujos Compartida 🌟';
+            loadImages(true);
+        }
+    </script>
+</body>
+</html>
