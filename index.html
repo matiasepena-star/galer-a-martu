@@ -3,154 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galería de Dibujos - Para mi Sobrina 🎨</title>
+    <title>Galería de Dibujos - Para Martu 🎨✨</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f0f8ff; padding: 20px; text-align: center; }
-        h1 { color: #ff69b4; }
-        button { background: #ff69b4; color: white; border: none; padding: 10px; margin: 10px; cursor: pointer; }
-        .gallery { display: flex; flex-wrap: wrap; justify-content: center; }
-        .image { margin: 10px; text-align: center; }
-        .image img { max-width: 200px; border: 2px solid #ddd; }
-        #qr { margin: 20px; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff0f5;
+            padding: 20px;
+            text-align: center;
+            color: #333;
+        }
+        h1 {
+            color: #ff69b4;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #ff1493;
+            margin: 30px 0 15px;
+        }
+        button {
+            background: #ff69b4;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 8px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 0 4px #ff1493;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #ff1493;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+        .image {
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .image img {
+            max-width: 180px;
+            border-radius: 8px;
+            border: 3px solid #ffb6c1;
+        }
+        #qr {
+            margin: 30px auto;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            display: inline-block;
+        }
     </style>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
     <!-- QR Code library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
     <h1>¡Galería de Tus Dibujos! 🎨✨</h1>
+
     <input type="file" id="upload" accept="image/*" multiple>
+    <br>
     <button onclick="uploadImages()">Subir Dibujos</button>
     <button onclick="loadImages()">Actualizar Galería</button>
     <button onclick="saveSelection()">Guardar Selección</button>
     <button onclick="generateQR()">Generar QR para Compartir</button>
-    
+
     <h2>Tus Dibujos (Selecciona los que querés mostrar)</h2>
     <div id="gallery" class="gallery"></div>
-    
+
     <div id="qr"></div>
 
-    <script>
-        // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    <script type="module">
+        // Firebase Modular SDK (versión reciente vía CDN)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+        import { getStorage, ref, uploadBytes, listAll, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCshsfr2sdKg67-9v-DRvLV10uJpnk71A8",
-  authDomain: "galeria-martu.firebaseapp.com",
-  projectId: "galeria-martu",
-  storageBucket: "galeria-martu.firebasestorage.app",
-  messagingSenderId: "968941856473",
-  appId: "1:968941856473:web:622151ffdb0097b576c0c8"
-};
+        // Tu configuración real de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCshsfr2sdKg67-9v-DRvLV10uJpnk71A8",
+            authDomain: "galeria-martu.firebaseapp.com",
+            projectId: "galeria-martu",
+            storageBucket: "galeria-martu.firebasestorage.app",
+            messagingSenderId: "968941856473",
+            appId: "1:968941856473:web:622151ffdb0097b576c0c8"
+        };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-        firebase.initializeApp(firebaseConfig);
-        
-        const auth = firebase.auth();
-        const storage = firebase.storage();
-        const db = firebase.firestore();
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const storage = getStorage(app);
+        const db = getFirestore(app);
+
         let userId = null;
-        let images = []; // Lista de imágenes
-        
-        // Autenticación anónima
-        auth.signInAnonymously().then(user => {
-            userId = user.user.uid;
-            loadImages();
-        }).catch(error => console.error('Error auth:', error));
-        
+
+        // Iniciar sesión anónima
+        signInAnonymously(auth)
+            .then(userCredential => {
+                userId = userCredential.user.uid;
+                console.log("Usuario anónimo conectado:", userId);
+                loadImages();
+            })
+            .catch(error => {
+                console.error("Error al conectar anónimamente:", error);
+                alert("Hubo un problema al conectar. Revisá internet o probá de nuevo.");
+            });
+
         // Subir imágenes
-        function uploadImages() {
+        window.uploadImages = function() {
             const files = document.getElementById('upload').files;
+            if (files.length === 0) {
+                alert("¡Seleccioná al menos un dibujo primero! 🖌️");
+                return;
+            }
             for (let file of files) {
-                const ref = storage.ref(`dibujos/${userId}/${file.name}`);
-                ref.put(file).then(() => {
-                    console.log('Subido:', file.name);
-                    loadImages();
-                });
-            }
-        }
-        
-        // Cargar imágenes
-        function loadImages(isPublic = false) {
-            const gallery = document.getElementById('gallery');
-            gallery.innerHTML = '';
-            images = [];
-            
-            storage.ref(`dibujos/${userId}`).listAll().then(res => {
-                res.items.forEach(itemRef => {
-                    itemRef.getDownloadURL().then(url => {
-                        images.push({ name: itemRef.name, url });
-                        if (isPublic) {
-                            // Modo público: solo mostrar seleccionados
-                            db.collection('seleccionados').doc(userId).get().then(doc => {
-                                const selected = doc.data()?.images || [];
-                                if (selected.includes(itemRef.name)) {
-                                    addImageToGallery(url, itemRef.name, true);
-                                }
-                            });
-                        } else {
-                            // Modo edición
-                            addImageToGallery(url, itemRef.name, false);
-                        }
+                const storageRef = ref(storage, `dibujos/${userId}/${file.name}`);
+                uploadBytes(storageRef, file)
+                    .then(() => {
+                        console.log('Subido:', file.name);
+                        loadImages(); // recargar galería
+                    })
+                    .catch(error => {
+                        console.error('Error al subir:', error);
+                        alert("Error al subir el dibujo. Probá con uno más chico o chequeá internet.");
                     });
-                });
-            });
-        }
-        
-        function addImageToGallery(url, name, isPublic) {
-            const div = document.createElement('div');
-            div.className = 'image';
-            div.innerHTML = `<img src="${url}" alt="${name}">`;
-            if (!isPublic) {
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = name;
-                // Cargar si está seleccionado
-                db.collection('seleccionados').doc(userId).get().then(doc => {
-                    const selected = doc.data()?.images || [];
-                    checkbox.checked = selected.includes(name);
-                });
-                div.appendChild(checkbox);
             }
-            document.getElementById('gallery').appendChild(div);
-        }
-        
+        };
+
+        // Cargar galería
+        window.loadImages = function(isPublic = false) {
+            if (!userId) return;
+
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '<p>Cargando dibujos... 🎨</p>';
+
+            const folderRef = ref(storage, `dibujos/${userId}`);
+            listAll(folderRef)
+                .then(res => {
+                    gallery.innerHTML = '';
+                    if (res.items.length === 0) {
+                        gallery.innerHTML = '<p>Aún no hay dibujos subidos 💕 Subí algunos!</p>';
+                        return;
+                    }
+                    res.items.forEach(itemRef => {
+                        getDownloadURL(itemRef).then(url => {
+                            const div = document.createElement('div');
+                            div.className = 'image';
+                            div.innerHTML = `<img src="${url}" alt="${itemRef.name}">`;
+
+                            if (!isPublic) {
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.value = itemRef.name;
+                                getDoc(doc(db, 'seleccionados', userId)).then(docSnap => {
+                                    const selected = docSnap.data()?.images || [];
+                                    checkbox.checked = selected.includes(itemRef.name);
+                                });
+                                div.appendChild(checkbox);
+                                div.appendChild(document.createTextNode(' Mostrar'));
+                            }
+
+                            gallery.appendChild(div);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al cargar galería:', error);
+                    gallery.innerHTML = '<p>Error al cargar. Revisá conexión.</p>';
+                });
+        };
+
         // Guardar selección
-        function saveSelection() {
+        window.saveSelection = function() {
+            if (!userId) return;
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-            const selected = [];
-            checkboxes.forEach(cb => {
-                if (cb.checked) selected.push(cb.value);
-            });
-            db.collection('seleccionados').doc(userId).set({ images: selected });
-            alert('¡Selección guardada! 🎉');
-        }
-        
-        // Generar QR para galería pública
-        function generateQR() {
+            const selected = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            setDoc(doc(db, 'seleccionados', userId), { images: selected })
+                .then(() => alert('¡Selección guardada! 🌟'))
+                .catch(error => {
+                    console.error('Error al guardar:', error);
+                    alert('Error al guardar. Probá de nuevo.');
+                });
+        };
+
+        // Generar QR
+        window.generateQR = function() {
+            if (!userId) {
+                alert("Esperá un segundito, todavía no se conectó 😅");
+                return;
+            }
             const publicUrl = `${window.location.origin}${window.location.pathname}?mode=public&uid=${userId}`;
-            document.getElementById('qr').innerHTML = '';
-            QRCode.toCanvas(document.createElement('canvas'), publicUrl, (error, canvas) => {
+            const qrDiv = document.getElementById('qr');
+            qrDiv.innerHTML = '';
+            QRCode.toCanvas(qrDiv, publicUrl, { width: 200 }, error => {
                 if (error) console.error(error);
-                document.getElementById('qr').appendChild(canvas);
-                alert('¡QR generado! Escanealo para ver la galería pública.');
             });
-        }
-        
-        // Chequear si es modo público
+            alert('¡QR listo! Mostráselo a quien quieras para ver la galería pública 💕');
+        };
+
+        // Modo público (solo ver)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('mode') === 'public') {
             userId = urlParams.get('uid');
-            document.querySelectorAll('button, input').forEach(el => el.style.display = 'none');
-            document.querySelector('h2').textContent = 'Galería de Dibujos Compartida 🌟';
+            document.querySelectorAll('button, input[type="file"]').forEach(el => el.style.display = 'none');
+            document.querySelector('h2').textContent = 'Galería de Dibujos Compartida 🌸✨';
+            document.querySelector('h1').textContent = '¡Mirá los dibujos de Martu! 🎨';
             loadImages(true);
         }
     </script>
